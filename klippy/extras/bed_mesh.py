@@ -384,19 +384,6 @@ class BedMeshCalibrate:
         if not self.faulty_regions:
             return
         self.substituted_indices.clear()
-        if self.zero_reference_mode == ZrefMode.PROBE:
-            # Cannot probe a reference within a faulty region
-            for min_c, max_c in self.faulty_regions:
-                if within(self.zero_ref_pos, min_c, max_c):
-                    opt = "zero_reference_position"
-                    if self.relative_reference_index is not None:
-                        opt = "relative_reference_index"
-                    raise error(
-                        "bed_mesh: Cannot probe zero reference position at "
-                        "(%.2f, %.2f) as it is located within a faulty region."
-                        " Check the value for option '%s'"
-                        % (self.zero_ref_pos[0], self.zero_ref_pos[1], opt,)
-                    )
         # Check to see if any points fall within faulty regions
         last_y = self.points[0][1]
         is_reversed = False
