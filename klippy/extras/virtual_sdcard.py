@@ -137,7 +137,75 @@ class VirtualSDGCodeProvider:
             return float(self.file_position) / self.file_size
         else:
             return 0.
-    def load_file(self, gcmd, filename, check_subdirs=False):
+    def is_active(self):
+        return self.work_timer is not None
+    def do_pause(self):
+        if self.work_timer is not None:
+            self.must_pause_work = True
+            while self.work_timer is not None and not self.cmd_from_sd:
+                self.reactor.pause(self.reactor.monotonic() + .001)
+    def do_resume(self):
+        if self.work_timer is not None:
+            raise self.gcode.error("SD busy")
+        self.must_pause_work = False
+        self.work_timer = self.reactor.register_timer(
+            self.work_handler, self.reactor.NOW)
+    def do_cancel(self):
+        if self.current_file is not None:
+            self.do_pause()
+            self.current_file.close()
+            self.current_file = None
+            self.print_stats.note_cancel()
+        self.file_position = self.file_size = 0
+    # G-Code commands
+    def cmd_error(self, gcmd):
+        raise gcmd.error("SD write not supported")
+    def _reset_file(self):
+        if self.current_file is not None:
+            self.do_pause()
+            self.current_file.close()
+            self.current_file = None
+        self.file_position = self.file_size = 0
+        self.print_stats.reset()
+        self.printer.send_event("virtual_sdcard:reset_file")
+    cmd_SDCARD_RESET_FILE_help = "Clears a loaded SD File. Stops the print "\
+        "if necessary"
+    def cmd_SDCARD_RESET_FILE(self, gcmd):
+        if self.cmd_from_sd:
+            raise gcmd.error(
+                "SDCARD_RESET_FILE cannot be run from the sdcard")
+        self._reset_file()
+    cmd_SDCARD_PRINT_FILE_help = "Loads a SD file and starts the print.  May "\
+        "include files in subdirectories."
+    def cmd_SDCARD_PRINT_FILE(self, gcmd):
+        if self.work_timer is not None:
+            raise gcmd.error("SD busy")
+        self._reset_file()
+        filename = gcmd.get("FILENAME")
+        if filename[0] == '/':
+            filename = filename[1:]
+        self._load_file(gcmd, filename, check_subdirs=True)
+        self.do_resume()
+    def cmd_M20(self, gcmd):
+        # List SD card
+        files = self.get_file_list()
+        gcmd.respond_raw("Begin file list")
+        for fname, fsize in files:
+            gcmd.respond_raw("%s %d" % (fname, fsize))
+        gcmd.respond_raw("End file list")
+    def cmd_M21(self, gcmd):
+        # Initialize SD card
+        gcmd.respond_raw("SD card ok")
+    def cmd_M23(self, gcmd):
+        # Select SD file
+        if self.work_timer is not None:
+            raise gcmd.error("SD busy")
+        self._reset_file()
+        filename = gcmd.get_raw_command_parameters().strip()
+        if filename.startswith('/'):
+            filename = filename[1:]
+        self._load_file(gcmd, filename)
+    def _load_file(self, gcmd, filename, check_subdirs=False):
         files = self.get_file_list(check_subdirs)
         flist = [f[0] for f in files]
         files_by_lower = { fname.lower(): fname for fname, fsize in files }
