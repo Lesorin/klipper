@@ -4343,12 +4343,6 @@ i2c_address:
 #i2c_speed:
 #   See the "common I2C settings" section for a description of the
 #   above parameters.
-#i2c_bus:
-#i2c_software_scl_pin:
-#i2c_software_sda_pin:
-#   If the I2C implementation of your micro-controller supports
-#   multiple I2C busses, you may specify the bus name here. The
-#   default is to use the default micro-controller i2c bus.
 ```
 
 ### [samd_sercom]
@@ -4595,8 +4589,6 @@ via the `i2c_speed` parameter. All other Klipper micro-controllers use a
 #   The name of the micro-controller that the chip is connected to.
 #   The default is "mcu".
 #i2c_bus:
-#i2c_software_scl_pin:
-#i2c_software_sda_pin:
 #   If the micro-controller supports multiple I2C busses then one may
 #   specify the micro-controller bus name here. The default depends on
 #   the type of micro-controller.
